@@ -65,6 +65,17 @@ def serve_any_other_file(path):
     response.cache_control.max_age = 0 # avoid cache memory
     return response
 
+@app.route("/signup", methods=["POST"])
+def create_user():
+    body = request.get_json() # get the request body content
+    if body is None:
+        return "The request body is null", 400
+    if 'email' not in body:
+        return 'You need to specify the mail', 400
+    if 'password' not in body:
+        return 'You need to specify the password', 400
+    return "ok", 200
+
 @app.route("/token", methods=["POST"])
 def create_token():
     email = request.json.get("email", None)
@@ -78,9 +89,9 @@ def create_token():
     access_token = create_access_token(identity=user.id)
     return jsonify({ "token": access_token, "user_id": user.id })
 
-@app.route("/protected", methods=["GET"])
+@app.route("/private", methods=["GET"])
 @jwt_required()
-def protected():
+def private():
     # Access the identity of the current user with get_jwt_identity
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
