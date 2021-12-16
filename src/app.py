@@ -41,7 +41,6 @@ setup_admin(app)
 # Add all endpoints form the API with a "api" prefix
 app.register_blueprint(api, url_prefix='/api')
 
-jwt = JWTManager(app)
 
 
 # Handle/serialize errors like a JSON object
@@ -65,38 +64,81 @@ def serve_any_other_file(path):
     response.cache_control.max_age = 0 # avoid cache memory
     return response
 
-@app.route("/signup", methods=["POST"])
-def create_user():
-    body = request.get_json() # get the request body content
-    if body is None:
-        return "The request body is null", 400
-    if 'email' not in body:
-        return 'You need to specify the mail', 400
-    if 'password' not in body:
-        return 'You need to specify the password', 400
-    return "ok", 200
+##### USERS #####
+# All users
+@app.route('/user', methods=['GET', 'POST'])
+def handle_users():
+    """
+    All Users
+    """
+    # GET all users
+    if request.method == 'GET':
+        users = User.query.all()
+        all_users = list(map(lambda x: x.serialize(), users))
+        return jsonify(all_users), 200
 
-@app.route("/token", methods=["POST"])
-def create_token():
-    email = request.json.get("email", None)
-    password = request.json.get("password", None)
-    
-    user = User.query.filter_by(email=email, password=password).first()
+    # Create (POST) a new user
+    if request.method == 'POST':
+        user_to_add = request.json
+
+        # Data validation
+        if user_to_add is None:
+            raise APIException("You need to specify the request body as a json object", status_code=400)
+        if 'user_name' not in user_to_add:
+            raise APIException('You need to specify the username', status_code=400)
+        if 'email' not in user_to_add:
+            raise APIException('You need to specify the email', status_code=400)
+        if 'password' not in user_to_add:
+            raise APIException('You need to create a valid password', status_code=400)
+
+        new_user = User(user_name=user_to_add["user_name"], email=user_to_add["email"], password=user_to_add["password"])
+        db.session.add(new_user)
+        db.session.commit()
+        return jsonify(new_user.serialize()), 200
+
+    return "Invalid Method", 404
+
+# Get, Edit or delete a specific user
+@app.route('/user/<int:user_id>', methods=['PUT', 'GET', 'DELETE'])
+def handle_single_user(user_id):
+    """
+    Single user
+    """
+    user = User.query.get(user_id)
+
+    # Data validation
     if user is None:
-        return jsonify({"msg": "Bad email or password"}), 401
-    
-    # create a new token with the user id inside
-    access_token = create_access_token(identity=user.id)
-    return jsonify({ "token": access_token, "user_id": user.id })
+        raise APIException('User not found in data base', status_code=404)
+        
+    # Modify (PUT) a user
+    if request.method == 'PUT':
+        request_body = request.json
 
-@app.route("/private", methods=["GET"])
-@jwt_required()
-def private():
-    # Access the identity of the current user with get_jwt_identity
-    current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
+        if "user_name" in request_body:
+            user.user_name = request_body["user_name"]
+        if "email" in request_body:
+            user.email = request_body["email"]
+        if "password" in request_body:
+            user.password = request_body["password"]
+        if "is_active" in request_body:
+            user.is_active = request_body["is_active"]
+
+        db.session.commit()
+        return jsonify(user.serialize()), 200
+
+    # GET a user
+    elif request.method == 'GET':
+        return jsonify(user.serialize()), 200
     
-    return jsonify({"id": user.id, "email": user.email }), 200
+    # DELETE a user
+    elif request.method == 'DELETE':
+        # user_planet_list = Fav_planet.query.filter_by(user_id=user_id).first()
+        # db.session.delete(user_planet_list)
+        db.session.delete(user)
+        db.session.commit()
+        return "User deleted", 200
+
+    return "Invalid Method", 404
 
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':
