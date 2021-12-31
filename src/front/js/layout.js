@@ -1,22 +1,22 @@
-import React, { useContext, useEffect } from "react";
-import { BrowserRouter, Route, Switch, Redirect } from "react-router-dom";
+import React from "react";
+import { BrowserRouter, Route, Switch } from "react-router-dom";
 import ScrollToTop from "./component/scrollToTop";
 
 import { Home } from "./pages/home";
-import { Login } from "./pages/login";
-import { Register } from "./pages/register";
-import { Profile } from "./pages/profile";
-import injectContext, { Context } from "./store/appContext";
+import { Demo } from "./pages/demo";
+import { Single } from "./pages/single";
+import { Dashboard } from "./pages/dashboard";
+import injectContext from "./store/appContext";
 
 import { Navbar } from "./component/navbar";
 import { Footer } from "./component/footer";
+import { Signup } from "./component/Singup";
 
 //create your first component
 const Layout = () => {
 	//the basename is used when your project is published in a subdirectory and not in the root of the domain
 	// you can set the basename on the .env file located at the root of this project, E.g: BASENAME=/react-hello-webapp/
 	const basename = process.env.BASENAME || "";
-	const { store, actions } = useContext(Context);
 
 	return (
 		<div>
@@ -27,19 +27,22 @@ const Layout = () => {
 						<Route exact path="/">
 							<Home />
 						</Route>
-						<Route exact path="/login">
-							{store.loggedIn ? <Redirect to="/" /> : <Login />}
+						<Route exact path="/demo">
+							<Demo />
 						</Route>
-						<Route exact path="/register">
-							{store.loggedIn ? <Redirect to="/" /> : <Register />}
+						<Route exact path="/dashboard">
+							<Dashboard />
 						</Route>
-						<Route exact path="/profile">
-							<Profile />
+
+						<Route exact path="/signup">
+							<Signup />
+						</Route>
+
+						<Route exact path="/single/:theid">
+							<Single />
 						</Route>
 						<Route>
-							<div className="view">
-								<h1>404: URL not found!</h1>
-							</div>
+							<h1>Not found!</h1>
 						</Route>
 					</Switch>
 					<Footer />

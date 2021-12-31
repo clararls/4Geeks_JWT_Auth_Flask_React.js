@@ -1,89 +1,99 @@
 const getState = ({ getStore, getActions, setStore }) => {
 	return {
 		store: {
-			loggedIn: false,
-			token: null,
 			message: null,
-			userData: {}
+			msg: { show: false, text: "" },
+			token: null,
+			user_email: "",
+			demo: [
+				{
+					title: "FIRST",
+					background: "white",
+					initial: "white"
+				},
+				{
+					title: "SECOND",
+					background: "white",
+					initial: "white"
+				}
+			]
 		},
 		actions: {
-			forceLogin: () => {
-				setStore({
-					loggedIn: true,
-					token: sessionStorage.getItem("token")
-				});
+			//ChangeMessage
+			changeMessage: () => {
+				setStore({ message: "Tic,tac,tic,tac...." });
 			},
-			logout: () => {
-				sessionStorage.removeItem("token");
-				setStore({
-					loggedIn: false,
-					token: null,
-					userData: {}
-				});
+			//log out
+			logOut: () => {
+				setStore({ token: null });
 			},
-			login: async (email, password, remember) => {
-				const options = {
-					method: "POST",
-					headers: {
-						"Content-type": "application/json"
-					},
-					body: JSON.stringify({
-						email: email,
-						password: password
-					})
-				};
+			// Use getActions to call a function within a fuction
+			exampleFunction: () => {
+				getActions().changeColor(0, "green");
+			},
 
-				const resp = await fetch(process.env.BACKEND_URL + "/api/token", options);
-				const data = await resp.json();
+			getMessage: () => {
+				// fetching data from the backend
+				fetch(process.env.BACKEND_URL + "/hello")
+					.then(resp => resp.json())
+					.then(data => setStore({ message: data.message }))
+					.catch(error => console.log("Error loading message from backend", error));
+			},
+			changeColor: (index, color) => {
+				//get the store
+				const store = getStore();
+
+				//we have to loop the entire demo array to look for the respective index
+				//and change its color
+				const demo = store.demo.map((elm, i) => {
+					if (i === index) elm.background = color;
+					return elm;
+				});
+
+				//reset the global store
+				setStore({ demo: demo });
+			},
+
+			// generate TOKEN
+			generate_token: async (email_recieved, password_recieved) => {
+				const store = getStore();
+
+				const resp = await fetch(process.env.BACKEND_URL + "/token", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ email: email_recieved, password: password_recieved })
+				});
+
+				if (!resp.ok) throw setStore({ message: "Invalid email or Password !" });
 
 				if (resp.status === 401) {
-					setStore({ message: data.msg });
-					return false;
+					throw "Invalid credentials";
+				} else if (resp.status === 400) {
+					throw "Invalid email or password format";
 				}
-
-				if (remember === "checked") {
-					sessionStorage.setItem("token", data.token);
-				}
-				setStore({
-					loggedIn: true,
-					token: data.token,
-					message: ""
-				});
-				return true;
-			},
-			createUser: async (user_name, email, password, remember) => {
-				const actions = getActions();
-				const options = {
-					method: "POST",
-					headers: {
-						"Content-type": "application/json"
-					},
-					body: JSON.stringify({
-						user_name: user_name,
-						email: email,
-						password: password
-					})
-				};
-				const resp = await fetch(process.env.BACKEND_URL + "/user", options);
 				const data = await resp.json();
-				if (resp.status === 401) return false;
-				actions.login(email, password, remember);
+				// save your token in the localStorage
+				//also you should set your user into the store using the setStore function
+				localStorage.setItem("token", data.token);
+				setStore({ token: data.token });
+				setStore({ user_email: email_recieved });
+
 				return data;
 			},
-			getProfileData: async token => {
-				const options = {
-					method: "GET",
-					headers: {
-						Authorization: "Bearer " + token
-					}
-				};
 
-				fetch(process.env.BACKEND_URL + "/api/user", options)
-					.then(resp => resp.json())
-					.then(data => {
-						setStore({ userData: data });
-					})
-					.catch(error => console.log(error));
+			//CREATE NEW USER
+			createUser: async data => {
+				const actions = getActions();
+				const store = getStore();
+
+				const resp = await fetch(process.env.BACKEND_URL + "/signup", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(data)
+				});
+				const data2 = await resp.json();
+				const text_received = data2.text;
+				setStore({ msg: { show: true, text: text_received } });
 			}
 		}
 	};
